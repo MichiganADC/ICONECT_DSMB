@@ -1,0 +1,113 @@
+---
+title: "I-CONECT DSMB Report"
+author: "Nicolas May"
+date: "2/25/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages.
+
+```{r}
+library(dplyr)
+library(stringr)
+```
+
+
+Load data.
+
+```{r}
+df_ic_raw <-
+  data.table::fread(
+    "./OCTRI5793Internetbas_DATA_2019-02-25_1116.csv"
+  ) %>% 
+  na_if("")
+
+df_ic <- 
+  data.table::fread(
+    "./OCTRI5793Internetbas_DATA_LABELS_2019-02-25_1146.csv"
+  ) %>% 
+  na_if("")
+
+names(df_ic) <- names(df_ic_raw)
+```
+
+
+# Study Administration Recruitment and Participant Status
+
+## Figure 2a-c: Overall Study Status
+
+## Figure 3a-c Enrollment: Actual vs. Expected
+
+```{r}
+# Get relevant fields
+df_ic_fig3 <- df_ic %>% 
+  # select relevant field(s)
+  select(
+    ts_sub_id
+    , redcap_event_name
+    , redcap_repeat_instrument
+    , redcap_repeat_instance
+    , ps_stt # 1 In Scrn, 2 Scrn Fail, 3 Enrld, 4 Act, 5 In flwup, 6 Dicont
+    , ps_scr 
+    , ps_fal
+  ) 
+
+# Clean data
+df_ic_fig3_cln <- df_ic_fig3 %>% 
+  # filter relevant arm(s)
+  filter(redcap_event_name == "Admin") %>% 
+  # keep only pts. with "current participant status" (ps_stt)
+  filter(!is.na(ps_stt)) %>%
+  # keep only pts. with "consent date" (ps_scr)
+  filter(!is.na(ps_scr)) %>% 
+  # keep only pts. WITHOUT "failure date" (ps_fal)
+  filter(is.na(ps_fal))
+
+# Mutate data
+df_ic_fig3_cln_mut <- df_ic_fig3_cln %>% 
+  # Coerce `ps_scr` to date
+  mutate(ps_scr = lubridate::mdy(ps_scr)) %>% 
+  # ID integer
+  mutate(ts_sub_id_int = 
+           as.integer(str_extract(ts_sub_id, pattern = "\\d{4}"))) %>% 
+  # OHSU / UM label
+  mutate(site = case_when(
+    between(ts_sub_id_int, 1001, 1999) ~ "OHSU",
+    between(ts_sub_id_int, 2001, 2999) ~ "UM",
+    TRUE ~ NA_character_
+  )) %>% 
+  # Arrange by ts_sub_id, ps_scr  
+  arrange(ts_sub_id, ps_scr)
+```
+
+## Table 1: Site Enrollment by Period
+
+## Table 2: Partcipant Enrollment Status
+
+```{r}
+df_ic_fig3_cln_mut %>% 
+  group_by(ps_stt) %>% 
+  summarize(n = n())
+```
+
+## Table 3a-b: Participant Enrollment Status by Site
+
+```{r}
+df_ic_fig3_cln_mut %>% 
+  filter(site == "OHSU") %>% 
+  group_by(ps_stt) %>% 
+  summarize(n = n())
+```
+
+```{r}
+df_ic_fig3_cln_mut %>% 
+  filter(site == "UM") %>% 
+  group_by(ps_stt) %>% 
+  summarize(n = n())
+```
+
+
