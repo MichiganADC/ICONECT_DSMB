@@ -1,23 +1,34 @@
 ---
 title: "I-CONECT DSMB Report"
-author: "Nicolas May"
-date: "2/25/2019"
+# author: "Nicolas May"
+# date: "2/25/2019"
 output: word_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
 ```
 
-Load packages.
+<!-- Load packages. -->
 
-```{r}
+```{r packages}
 library(dplyr)
 library(stringr)
+library(knitr)
+library(kableExtra)
+```
+
+<!-- Load custom functions. -->
+
+```{r}
+prettify_table <- function(x) {
+  x %>%
+    kable(format = "pandoc")
+}
 ```
 
 
-Load data.
+<!-- Load data. -->
 
 ```{r}
 df_ic_raw <-
@@ -38,13 +49,9 @@ names(df_ic) <- names(df_ic_raw)
 
 # Study Administration Recruitment and Participant Status
 
-## Figure 2a-c: Overall Study Status
-
-## Figure 3a-c Enrollment: Actual vs. Expected
-
 ```{r}
 # Get relevant fields
-df_ic_fig3 <- df_ic %>% 
+df_ic_status <- df_ic %>% 
   # select relevant field(s)
   select(
     ts_sub_id
@@ -54,10 +61,15 @@ df_ic_fig3 <- df_ic %>%
     , ps_stt # 1 In Scrn, 2 Scrn Fail, 3 Enrld, 4 Act, 5 In flwup, 6 Dicont
     , ps_scr 
     , ps_fal
-  ) 
+  )
 
+```
+
+```{r}
 # Clean data
-df_ic_fig3_cln <- df_ic_fig3 %>% 
+df_ic_status_cln <- df_ic_status %>% 
+  # keep only pt. IDs
+  filter(str_detect(ts_sub_id, "^C\\d{4}$")) %>% 
   # filter relevant arm(s)
   filter(redcap_event_name == "Admin") %>% 
   # keep only pts. with "current participant status" (ps_stt)
@@ -66,9 +78,11 @@ df_ic_fig3_cln <- df_ic_fig3 %>%
   filter(!is.na(ps_scr)) %>% 
   # keep only pts. WITHOUT "failure date" (ps_fal)
   filter(is.na(ps_fal))
+```
 
+```{r}
 # Mutate data
-df_ic_fig3_cln_mut <- df_ic_fig3_cln %>% 
+df_ic_status_cln_mut <- df_ic_status_cln %>% 
   # Coerce `ps_scr` to date
   mutate(ps_scr = lubridate::mdy(ps_scr)) %>% 
   # ID integer
@@ -84,30 +98,142 @@ df_ic_fig3_cln_mut <- df_ic_fig3_cln %>%
   arrange(ts_sub_id, ps_scr)
 ```
 
-## Table 1: Site Enrollment by Period
+**Figure 2a-c: Overall Study Status**
 
-## Table 2: Partcipant Enrollment Status
+**Figure 3a-c Enrollment: Actual vs. Expected**
 
-```{r}
-df_ic_fig3_cln_mut %>% 
+**Table 1: Site Enrollment by Period**
+
+**Table 2: Partcipant Enrollment Status**
+
+```{r table2}
+df_ic_status_cln_mut %>% 
   group_by(ps_stt) %>% 
-  summarize(n = n())
+  summarize(n = n()) %>% 
+  prettify_table()
 ```
 
-## Table 3a-b: Participant Enrollment Status by Site
+**Table 3a-b: Participant Enrollment Status by Site**
 
-```{r}
-df_ic_fig3_cln_mut %>% 
+```{r table3a}
+df_ic_status_cln_mut %>% 
   filter(site == "OHSU") %>% 
   group_by(ps_stt) %>% 
-  summarize(n = n())
+  summarize(n = n()) %>% 
+  prettify_table()
+```
+
+```{r table3b}
+df_ic_status_cln_mut %>% 
+  filter(site == "UM") %>% 
+  group_by(ps_stt) %>% 
+  summarize(n = n()) %>% 
+  prettify_table()
+```
+
+```{r table3c}
+
+```
+
+**Table 4: Reasons for Screen Failures (Cumulative*)**
+
+```{r table4}
+
+```
+
+**Table 5: Main Trial Protocol Deviations**
+
+```{r table5}
+
+```
+
+**Table 6: Main Trial Protocol Deviations by Classification**
+
+```{r table6}
+
+```
+
+**Table 7a-b: Main Trial Protocol Deviations by Site**
+
+```{r table7a}
+
+```
+
+```{r table7b}
+
+```
+
+```{r table7c}
+
+```
+
+**Table 8: Main Trial Demographic and Key Baseline Characteristics**
+
+```{r}
+# Get relevant fields
+df_ic_demodx <- df_ic %>% 
+  # select relevant fields
+  select(
+    ts_sub_id
+    , redcap_event_name
+    , redcap_repeat_instrument
+    , nac_sex
+    , nac_hispanic
+    , nac_race
+    , nac_a1_age
+    , nac_normcog
+    , nac_mciamem
+    , nac_mciaplus
+    , nac_mcinon1
+    , nac_mcinon2
+  )
 ```
 
 ```{r}
-df_ic_fig3_cln_mut %>% 
-  filter(site == "UM") %>% 
-  group_by(ps_stt) %>% 
-  summarize(n = n())
+# Clean data
+df_ic_demo_cln <- df_ic_demodx %>% 
+  # keep only pt. IDs
+  filter(str_detect(ts_sub_id, "^C\\d{4}$")) %>% 
+  # filter relevant arm(s)
+  filter(redcap_event_name == "Scrn V") %>% 
+  # filter relevant repeat instruments
+  filter(redcap_repeat_instrument == "Demographics (NACC A1)")
+
+df_ic_dx_cln <- df_ic_demodx %>% 
+  # keep only pt. IDs
+  filter(str_detect(ts_sub_id, "^C\\d{4}$")) %>%
+  # filter relevant arms
+  filter(redcap_event_name == "BL CDx") %>% 
+  # filter relevant repeat instruments
+  filter(redcap_repeat_instrument == "Clinician Diagnosis (NACC D1)")
 ```
+
+```{r}
+# Summarize data
+df_ic_demo_cln %>% 
+  group_by(nac_sex) %>% 
+  summarize(n = n()) %>% 
+  prettify_table()
+
+df_ic_demo_cln %>% 
+  group_by(nac_hispanic) %>% 
+  summarize(n = n()) %>% 
+  prettify_table()
+
+df_ic_demo_cln %>% 
+  group_by(nac_race) %>% 
+  summarize(n = n()) %>% 
+  prettify_table()
+
+df_ic_demo_cln %>% 
+  summarize(Age_Mean = mean(nac_a1_age, na.rm = TRUE),
+            Age_Median = median(nac_a1_age, na.rm = TRUE),
+            Age_SD = sd(nac_a1_age, na.rm = TRUE),
+            Age_Min = min(nac_a1_age, na.rm = TRUE),
+            Age_Max = max(nac_a1_age, na.rm = TRUE)) %>% 
+  prettify_table()
+```
+
+
 
 
