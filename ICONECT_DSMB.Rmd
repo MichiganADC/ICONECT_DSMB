@@ -135,7 +135,7 @@ df_ic_status_cln_mut %>%
 
 ```
 
-**Table 4: Reasons for Screen Failures (Cumulative*)**
+**Table 4: Reasons for Screen Failures (Cumulative)**
 
 ```{r table4}
 
